@@ -1,0 +1,661 @@
+-- Solara UI Library
+-- A modern transparent blue UI library with blur effects for Roblox
+
+local SolaraUI = {}
+SolaraUI.__index = SolaraUI
+
+-- Services
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Constants
+local THEME = {
+    Primary = Color3.fromRGB(0, 123, 255),
+    Secondary = Color3.fromRGB(108, 117, 125),
+    Success = Color3.fromRGB(40, 167, 69),
+    Danger = Color3.fromRGB(220, 53, 69),
+    Warning = Color3.fromRGB(255, 193, 7),
+    Info = Color3.fromRGB(23, 162, 184),
+    Light = Color3.fromRGB(248, 249, 250),
+    Dark = Color3.fromRGB(52, 58, 64),
+    Background = Color3.fromRGB(13, 27, 42),
+    Surface = Color3.fromRGB(25, 42, 63),
+    Text = Color3.fromRGB(255, 255, 255),
+    TextSecondary = Color3.fromRGB(173, 181, 189)
+}
+
+local ANIMATIONS = {
+    Quick = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    Smooth = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    Bounce = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+}
+
+-- Utility Functions
+local function createBlurFrame(parent, transparency)
+    transparency = transparency or 0.7
+    
+    local frame = Instance.new("Frame")
+    frame.Parent = parent
+    frame.BackgroundColor3 = THEME.Surface
+    frame.BackgroundTransparency = transparency
+    frame.BorderSizePixel = 0
+    
+    -- Add blur effect
+    local blur = Instance.new("UICorner")
+    blur.CornerRadius = UDim.new(0, 8)
+    blur.Parent = frame
+    
+    -- Add stroke for definition
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = THEME.Primary
+    stroke.Transparency = 0.8
+    stroke.Thickness = 1
+    stroke.Parent = frame
+    
+    return frame
+end
+
+local function createHoverEffect(element, hoverTransparency, normalTransparency)
+    normalTransparency = normalTransparency or element.BackgroundTransparency
+    hoverTransparency = hoverTransparency or math.max(0, normalTransparency - 0.2)
+    
+    element.MouseEnter:Connect(function()
+        TweenService:Create(element, ANIMATIONS.Quick, {
+            BackgroundTransparency = hoverTransparency
+        }):Play()
+    end)
+    
+    element.MouseLeave:Connect(function()
+        TweenService:Create(element, ANIMATIONS.Quick, {
+            BackgroundTransparency = normalTransparency
+        }):Play()
+    end)
+end
+
+local function createRippleEffect(element)
+    element.MouseButton1Click:Connect(function()
+        local ripple = Instance.new("Frame")
+        ripple.Size = UDim2.new(0, 0, 0, 0)
+        ripple.Position = UDim2.new(0.5, 0, 0.5, 0)
+        ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+        ripple.BackgroundColor3 = THEME.Primary
+        ripple.BackgroundTransparency = 0.5
+        ripple.BorderSizePixel = 0
+        ripple.Parent = element
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = ripple
+        
+        local tween = TweenService:Create(ripple, ANIMATIONS.Smooth, {
+            Size = UDim2.new(2, 0, 2, 0),
+            BackgroundTransparency = 1
+        })
+        
+        tween:Play()
+        tween.Completed:Connect(function()
+            ripple:Destroy()
+        end)
+    end)
+end
+
+-- Main Library Constructor
+function SolaraUI.new(title)
+    local self = setmetatable({}, SolaraUI)
+    
+    -- Create main ScreenGui
+    self.ScreenGui = Instance.new("ScreenGui")
+    self.ScreenGui.Name = "SolaraUI"
+    self.ScreenGui.ResetOnSpawn = false
+    self.ScreenGui.Parent = game.CoreGui
+    
+    -- Create main window
+    self.Window = createBlurFrame(self.ScreenGui, 0.3)
+    self.Window.Size = UDim2.new(0, 500, 0, 400)
+    self.Window.Position = UDim2.new(0.5, -250, 0.5, -200)
+    
+    -- Title bar
+    self.TitleBar = createBlurFrame(self.Window, 0.2)
+    self.TitleBar.Size = UDim2.new(1, 0, 0, 40)
+    self.TitleBar.Position = UDim2.new(0, 0, 0, 0)
+    
+    self.TitleLabel = Instance.new("TextLabel")
+    self.TitleLabel.Parent = self.TitleBar
+    self.TitleLabel.Size = UDim2.new(1, -80, 1, 0)
+    self.TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+    self.TitleLabel.BackgroundTransparency = 1
+    self.TitleLabel.Text = title or "Solara UI"
+    self.TitleLabel.TextColor3 = THEME.Text
+    self.TitleLabel.TextScaled = true
+    self.TitleLabel.Font = Enum.Font.GothamBold
+    self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Close button
+    self.CloseButton = self:CreateButton(self.TitleBar, "×", function()
+        self:Destroy()
+    end)
+    self.CloseButton.Size = UDim2.new(0, 30, 0, 30)
+    self.CloseButton.Position = UDim2.new(1, -35, 0, 5)
+    
+    -- Content area
+    self.Content = createBlurFrame(self.Window, 0.8)
+    self.Content.Size = UDim2.new(1, -20, 1, -60)
+    self.Content.Position = UDim2.new(0, 10, 0, 50)
+    
+    -- Scrolling frame
+    self.ScrollingFrame = Instance.new("ScrollingFrame")
+    self.ScrollingFrame.Parent = self.Content
+    self.ScrollingFrame.Size = UDim2.new(1, 0, 1, 0)
+    self.ScrollingFrame.BackgroundTransparency = 1
+    self.ScrollingFrame.BorderSizePixel = 0
+    self.ScrollingFrame.ScrollBarThickness = 8
+    self.ScrollingFrame.ScrollBarImageColor3 = THEME.Primary
+    self.ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    
+    -- Auto-resize canvas
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = self.ScrollingFrame
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        self.ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end)
+    
+    -- Make window draggable
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    self.TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = self.Window.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            self.Window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
+                                           startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    return self
+end
+
+-- Button Component
+function SolaraUI:CreateButton(parent, text, callback)
+    parent = parent or self.ScrollingFrame
+    
+    local button = createBlurFrame(parent, 0.5)
+    button.Size = UDim2.new(1, -10, 0, 35)
+    button.Position = UDim2.new(0, 5, 0, 0)
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Parent = button
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = text
+    textLabel.TextColor3 = THEME.Text
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.Gotham
+    
+    local textButton = Instance.new("TextButton")
+    textButton.Parent = button
+    textButton.Size = UDim2.new(1, 0, 1, 0)
+    textButton.BackgroundTransparency = 1
+    textButton.Text = ""
+    
+    createHoverEffect(button, 0.3, 0.5)
+    createRippleEffect(button)
+    
+    if callback then
+        textButton.MouseButton1Click:Connect(callback)
+    end
+    
+    return button
+end
+
+-- Toggle Component
+function SolaraUI:CreateToggle(parent, text, defaultState, callback, colorPicker)
+    parent = parent or self.ScrollingFrame
+    defaultState = defaultState or false
+    
+    local container = createBlurFrame(parent, 0.6)
+    container.Size = UDim2.new(1, -10, 0, 35)
+    container.Position = UDim2.new(0, 5, 0, 0)
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = container
+    label.Size = UDim2.new(1, -60, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = THEME.Text
+    label.TextScaled = true
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Toggle switch
+    local toggleFrame = createBlurFrame(container, 0.4)
+    toggleFrame.Size = UDim2.new(0, 40, 0, 20)
+    toggleFrame.Position = UDim2.new(1, -45, 0.5, -10)
+    
+    local toggleButton = createBlurFrame(toggleFrame, 0.2)
+    toggleButton.Size = UDim2.new(0, 16, 0, 16)
+    toggleButton.Position = UDim2.new(0, 2, 0.5, -8)
+    toggleButton.BackgroundColor3 = THEME.Text
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(1, 0)
+    toggleCorner.Parent = toggleButton
+    
+    local state = defaultState
+    
+    local function updateToggle()
+        local targetPos = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+        local targetColor = state and THEME.Primary or THEME.Text
+        local frameColor = state and THEME.Primary or THEME.Surface
+        
+        TweenService:Create(toggleButton, ANIMATIONS.Smooth, {
+            Position = targetPos,
+            BackgroundColor3 = targetColor
+        }):Play()
+        
+        TweenService:Create(toggleFrame, ANIMATIONS.Smooth, {
+            BackgroundColor3 = frameColor
+        }):Play()
+    end
+    
+    updateToggle()
+    
+    local clickDetector = Instance.new("TextButton")
+    clickDetector.Parent = container
+    clickDetector.Size = UDim2.new(1, 0, 1, 0)
+    clickDetector.BackgroundTransparency = 1
+    clickDetector.Text = ""
+    
+    clickDetector.MouseButton1Click:Connect(function()
+        state = not state
+        updateToggle()
+        if callback then
+            callback(state)
+        end
+    end)
+    
+    createHoverEffect(container, 0.4, 0.6)
+    
+    -- Color picker (optional)
+    if colorPicker and state then
+        -- Add color picker functionality here
+    end
+    
+    -- Return toggle object with methods
+    local toggleObj = {
+        SetState = function(newState)
+            state = newState
+            updateToggle()
+        end,
+        GetState = function()
+            return state
+        end
+    }
+    
+    return toggleObj
+end
+
+-- Input Component
+function SolaraUI:CreateInput(parent, placeholder, callback)
+    parent = parent or self.ScrollingFrame
+    
+    local container = createBlurFrame(parent, 0.6)
+    container.Size = UDim2.new(1, -10, 0, 35)
+    container.Position = UDim2.new(0, 5, 0, 0)
+    
+    local textBox = Instance.new("TextBox")
+    textBox.Parent = container
+    textBox.Size = UDim2.new(1, -20, 1, 0)
+    textBox.Position = UDim2.new(0, 10, 0, 0)
+    textBox.BackgroundTransparency = 1
+    textBox.Text = ""
+    textBox.PlaceholderText = placeholder or "Enter text..."
+    textBox.TextColor3 = THEME.Text
+    textBox.PlaceholderColor3 = THEME.TextSecondary
+    textBox.TextScaled = true
+    textBox.Font = Enum.Font.Gotham
+    textBox.TextXAlignment = Enum.TextXAlignment.Left
+    
+    createHoverEffect(container, 0.4, 0.6)
+    
+    if callback then
+        textBox.FocusLost:Connect(function(enterPressed)
+            callback(textBox.Text, enterPressed)
+        end)
+    end
+    
+    return textBox
+end
+
+-- ComboBox Component
+function SolaraUI:CreateComboBox(parent, options, defaultOption, callback)
+    parent = parent or self.ScrollingFrame
+    options = options or {"Option 1", "Option 2", "Option 3"}
+    defaultOption = defaultOption or options[1]
+    
+    local container = createBlurFrame(parent, 0.6)
+    container.Size = UDim2.new(1, -10, 0, 35)
+    container.Position = UDim2.new(0, 5, 0, 0)
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = container
+    label.Size = UDim2.new(1, -30, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = defaultOption
+    label.TextColor3 = THEME.Text
+    label.TextScaled = true
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local arrow = Instance.new("TextLabel")
+    arrow.Parent = container
+    arrow.Size = UDim2.new(0, 20, 1, 0)
+    arrow.Position = UDim2.new(1, -25, 0, 0)
+    arrow.BackgroundTransparency = 1
+    arrow.Text = "▼"
+    arrow.TextColor3 = THEME.Text
+    arrow.TextScaled = true
+    arrow.Font = Enum.Font.Gotham
+    
+    local dropdown = createBlurFrame(container, 0.4)
+    dropdown.Size = UDim2.new(1, 0, 0, #options * 30)
+    dropdown.Position = UDim2.new(0, 0, 1, 5)
+    dropdown.Visible = false
+    dropdown.ZIndex = 10
+    
+    local dropdownLayout = Instance.new("UIListLayout")
+    dropdownLayout.Parent = dropdown
+    dropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    for i, option in ipairs(options) do
+        local optionButton = Instance.new("TextButton")
+        optionButton.Parent = dropdown
+        optionButton.Size = UDim2.new(1, 0, 0, 30)
+        optionButton.BackgroundColor3 = THEME.Surface
+        optionButton.BackgroundTransparency = 0.8
+        optionButton.BorderSizePixel = 0
+        optionButton.Text = option
+        optionButton.TextColor3 = THEME.Text
+        optionButton.TextScaled = true
+        optionButton.Font = Enum.Font.Gotham
+        
+        createHoverEffect(optionButton, 0.6, 0.8)
+        
+        optionButton.MouseButton1Click:Connect(function()
+            label.Text = option
+            dropdown.Visible = false
+            if callback then
+                callback(option, i)
+            end
+        end)
+    end
+    
+    local clickDetector = Instance.new("TextButton")
+    clickDetector.Parent = container
+    clickDetector.Size = UDim2.new(1, 0, 1, 0)
+    clickDetector.BackgroundTransparency = 1
+    clickDetector.Text = ""
+    
+    clickDetector.MouseButton1Click:Connect(function()
+        dropdown.Visible = not dropdown.Visible
+        arrow.Text = dropdown.Visible and "▲" or "▼"
+    end)
+    
+    createHoverEffect(container, 0.4, 0.6)
+    
+    return {
+        SetValue = function(value)
+            label.Text = value
+        end,
+        GetValue = function()
+            return label.Text
+        end
+    }
+end
+
+-- Multi-ComboBox Component
+function SolaraUI:CreateMultiComboBox(parent, options, callback)
+    parent = parent or self.ScrollingFrame
+    options = options or {"Option 1", "Option 2", "Option 3"}
+    
+    local selectedOptions = {}
+    
+    local container = createBlurFrame(parent, 0.6)
+    container.Size = UDim2.new(1, -10, 0, 35)
+    container.Position = UDim2.new(0, 5, 0, 0)
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = container
+    label.Size = UDim2.new(1, -30, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "Select multiple options..."
+    label.TextColor3 = THEME.TextSecondary
+    label.TextScaled = true
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local arrow = Instance.new("TextLabel")
+    arrow.Parent = container
+    arrow.Size = UDim2.new(0, 20, 1, 0)
+    arrow.Position = UDim2.new(1, -25, 0, 0)
+    arrow.BackgroundTransparency = 1
+    arrow.Text = "▼"
+    arrow.TextColor3 = THEME.Text
+    arrow.TextScaled = true
+    arrow.Font = Enum.Font.Gotham
+    
+    local dropdown = createBlurFrame(container, 0.4)
+    dropdown.Size = UDim2.new(1, 0, 0, #options * 30)
+    dropdown.Position = UDim2.new(0, 0, 1, 5)
+    dropdown.Visible = false
+    dropdown.ZIndex = 10
+    
+    local dropdownLayout = Instance.new("UIListLayout")
+    dropdownLayout.Parent = dropdown
+    dropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    local function updateLabel()
+        if #selectedOptions == 0 then
+            label.Text = "Select multiple options..."
+            label.TextColor3 = THEME.TextSecondary
+        else
+            label.Text = table.concat(selectedOptions, ", ")
+            label.TextColor3 = THEME.Text
+        end
+    end
+    
+    for i, option in ipairs(options) do
+        local optionContainer = createBlurFrame(dropdown, 0.8)
+        optionContainer.Size = UDim2.new(1, 0, 0, 30)
+        optionContainer.BackgroundColor3 = THEME.Surface
+        
+        local checkbox = Instance.new("Frame")
+        checkbox.Parent = optionContainer
+        checkbox.Size = UDim2.new(0, 16, 0, 16)
+        checkbox.Position = UDim2.new(0, 10, 0.5, -8)
+        checkbox.BackgroundColor3 = THEME.Surface
+        checkbox.BorderSizePixel = 1
+        checkbox.BorderColor3 = THEME.Primary
+        
+        local checkCorner = Instance.new("UICorner")
+        checkCorner.CornerRadius = UDim.new(0, 3)
+        checkCorner.Parent = checkbox
+        
+        local checkmark = Instance.new("TextLabel")
+        checkmark.Parent = checkbox
+        checkmark.Size = UDim2.new(1, 0, 1, 0)
+        checkmark.BackgroundTransparency = 1
+        checkmark.Text = "✓"
+        checkmark.TextColor3 = THEME.Primary
+        checkmark.TextScaled = true
+        checkmark.Font = Enum.Font.GothamBold
+        checkmark.Visible = false
+        
+        local optionLabel = Instance.new("TextLabel")
+        optionLabel.Parent = optionContainer
+        optionLabel.Size = UDim2.new(1, -40, 1, 0)
+        optionLabel.Position = UDim2.new(0, 35, 0, 0)
+        optionLabel.BackgroundTransparency = 1
+        optionLabel.Text = option
+        optionLabel.TextColor3 = THEME.Text
+        optionLabel.TextScaled = true
+        optionLabel.Font = Enum.Font.Gotham
+        optionLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local optionButton = Instance.new("TextButton")
+        optionButton.Parent = optionContainer
+        optionButton.Size = UDim2.new(1, 0, 1, 0)
+        optionButton.BackgroundTransparency = 1
+        optionButton.Text = ""
+        
+        createHoverEffect(optionContainer, 0.6, 0.8)
+        
+        optionButton.MouseButton1Click:Connect(function()
+            local index = table.find(selectedOptions, option)
+            if index then
+                table.remove(selectedOptions, index)
+                checkmark.Visible = false
+                checkbox.BackgroundColor3 = THEME.Surface
+            else
+                table.insert(selectedOptions, option)
+                checkmark.Visible = true
+                checkbox.BackgroundColor3 = THEME.Primary
+            end
+            updateLabel()
+            if callback then
+                callback(selectedOptions)
+            end
+        end)
+    end
+    
+    local clickDetector = Instance.new("TextButton")
+    clickDetector.Parent = container
+    clickDetector.Size = UDim2.new(1, 0, 1, 0)
+    clickDetector.BackgroundTransparency = 1
+    clickDetector.Text = ""
+    
+    clickDetector.MouseButton1Click:Connect(function()
+        dropdown.Visible = not dropdown.Visible
+        arrow.Text = dropdown.Visible and "▲" or "▼"
+    end)
+    
+    createHoverEffect(container, 0.4, 0.6)
+    
+    return {
+        GetSelected = function()
+            return selectedOptions
+        end,
+        SetSelected = function(newSelection)
+            selectedOptions = newSelection or {}
+            updateLabel()
+        end
+    }
+end
+
+-- Color Picker Component
+function SolaraUI:CreateColorPicker(parent, defaultColor, callback)
+    parent = parent or self.ScrollingFrame
+    defaultColor = defaultColor or Color3.fromRGB(255, 255, 255)
+    
+    local container = createBlurFrame(parent, 0.6)
+    container.Size = UDim2.new(1, -10, 0, 35)
+    container.Position = UDim2.new(0, 5, 0, 0)
+    
+    local colorDisplay = Instance.new("Frame")
+    colorDisplay.Parent = container
+    colorDisplay.Size = UDim2.new(0, 25, 0, 25)
+    colorDisplay.Position = UDim2.new(0, 5, 0.5, -12.5)
+    colorDisplay.BackgroundColor3 = defaultColor
+    colorDisplay.BorderSizePixel = 0
+    
+    local colorCorner = Instance.new("UICorner")
+    colorCorner.CornerRadius = UDim.new(0, 4)
+    colorCorner.Parent = colorDisplay
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = container
+    label.Size = UDim2.new(1, -40, 1, 0)
+    label.Position = UDim2.new(0, 35, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "Color Picker"
+    label.TextColor3 = THEME.Text
+    label.TextScaled = true
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local clickDetector = Instance.new("TextButton")
+    clickDetector.Parent = container
+    clickDetector.Size = UDim2.new(1, 0, 1, 0)
+    clickDetector.BackgroundTransparency = 1
+    clickDetector.Text = ""
+    
+    createHoverEffect(container, 0.4, 0.6)
+    
+    -- Simple color picker (you can expand this with HSV picker)
+    clickDetector.MouseButton1Click:Connect(function()
+        -- For demo purposes, cycle through some colors
+        local colors = {
+            Color3.fromRGB(255, 0, 0),
+            Color3.fromRGB(0, 255, 0),
+            Color3.fromRGB(0, 0, 255),
+            Color3.fromRGB(255, 255, 0),
+            Color3.fromRGB(255, 0, 255),
+            Color3.fromRGB(0, 255, 255),
+            Color3.fromRGB(255, 255, 255)
+        }
+        
+        local currentIndex = 1
+        for i, color in ipairs(colors) do
+            if colorDisplay.BackgroundColor3 == color then
+                currentIndex = i
+                break
+            end
+        end
+        
+        currentIndex = currentIndex % #colors + 1
+        colorDisplay.BackgroundColor3 = colors[currentIndex]
+        
+        if callback then
+            callback(colors[currentIndex])
+        end
+    end)
+    
+    return {
+        SetColor = function(color)
+            colorDisplay.BackgroundColor3 = color
+        end,
+        GetColor = function()
+            return colorDisplay.BackgroundColor3
+        end
+    }
+end
+
+-- Destroy function
+function SolaraUI:Destroy()
+    if self.ScreenGui then
+        self.ScreenGui:Destroy()
+    end
+end
+
+return SolaraUI
