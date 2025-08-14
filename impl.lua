@@ -6,8 +6,7 @@
 -- For HTTP loading: local SolaraUI = loadstring(game:HttpGet("your-url-here"))()
 
 -- Assuming the library is already loaded, create the UI
-local SolaraUI = {} -- Replace this line with actual library loadingasdasdasdasdads
-
+local SolaraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/itcps/cpsui/refs/heads/main/cpsUI"))()
 -- Create main window
 local ui = SolaraUI.new and SolaraUI.new("Solara Executor - Demo") or nil
 
