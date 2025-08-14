@@ -1,5 +1,5 @@
 -- Solara UI Library
--- A modern transparent blue UI library with blur effects for Roblox
+-- A modern transparent blue UI library with blur effects for Roblox yeeea
 
 local SolaraUI = {}
 SolaraUI.__index = SolaraUI
@@ -8,6 +8,7 @@ SolaraUI.__index = SolaraUI
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Constants
 local THEME = {
@@ -41,10 +42,10 @@ local function createBlurFrame(parent, transparency)
     frame.BackgroundTransparency = transparency
     frame.BorderSizePixel = 0
     
-    -- Add blur effect
-    local blur = Instance.new("UICorner")
-    blur.CornerRadius = UDim.new(0, 8)
-    blur.Parent = frame
+    -- Add corner radius
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
     
     -- Add stroke for definition
     local stroke = Instance.new("UIStroke")
@@ -176,7 +177,7 @@ function SolaraUI.new(title)
         end
     end)
     
-    UserInputService.InputChanged:Connect(function(input)
+    local connection1 = UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragStart
             self.Window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
@@ -184,11 +185,14 @@ function SolaraUI.new(title)
         end
     end)
     
-    UserInputService.InputEnded:Connect(function(input)
+    local connection2 = UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
     end)
+    
+    -- Store connections for cleanup
+    self.Connections = {connection1, connection2}
     
     return self
 end
@@ -653,6 +657,16 @@ end
 
 -- Destroy function
 function SolaraUI:Destroy()
+    -- Disconnect all connections
+    if self.Connections then
+        for _, connection in ipairs(self.Connections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+    end
+    
+    -- Destroy GUI
     if self.ScreenGui then
         self.ScreenGui:Destroy()
     end
